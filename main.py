@@ -59,9 +59,10 @@ async def redirect_to_long_url(short_url: str):
     collection = db["urls"]
     # long_url = await get_long_url(short_url)
     doc_with_long_url = await collection.find_one({"short_url": short_url})
-    long_url = doc_with_long_url["long_url"]
-    print(long_url)
-    if long_url:
-        return RedirectResponse(url=long_url, status_code=302)
+    if doc_with_long_url is not None:
+        long_url = doc_with_long_url.get("long_url")
+        if long_url:
+            return RedirectResponse(url=long_url, status_code=302)
     else:
         return 'Not found'
+
