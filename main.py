@@ -2,7 +2,7 @@ import json
 import os
 import random
 import string
-
+import motor.motor_asyncio
 import aiofiles
 from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
@@ -10,6 +10,11 @@ from fastapi.responses import RedirectResponse
 
 app = FastAPI()
 template = Jinja2Templates(directory="templates")
+username = os.environ.get("MONGO_USERNAME", "root")
+password = os.environ.get("MONGO_PASSWORD", "example")
+hostname = os.environ.get("MONGO_HOST", "localhost")
+port = os.environ.get("MONGO_PORT", "27017")
+client = motor.motor_asyncio.AsyncIOMotorClient(f"mongodb://{username}:{password}@{hostname}:{port}/")
 
 
 @app.get("/")
@@ -41,14 +46,20 @@ async def get_long_url(short_url: str):
 @app.post("/")
 async def record_url(long_url: str = Form()):
     # generate string with 4 random characters
+    db = client["url_shortener"]
+    collection = db["urls"]
     short_url = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(4))
-    await save_json_to_file(short_url, long_url)
+    await collection.insert_one({"short_url": short_url, "long_url": long_url})
     return short_url
 
 
 @app.get("/{short_url}")
 async def redirect_to_long_url(short_url: str):
-    long_url = await get_long_url(short_url)
+    db = client["url_shortener"]
+    collection = db["urls"]
+    # long_url = await get_long_url(short_url)
+    doc_with_long_url = await collection.find_one({"short_url": short_url})
+    long_url = doc_with_long_url["long_url"]
     print(long_url)
     if long_url:
         return RedirectResponse(url=long_url, status_code=302)
