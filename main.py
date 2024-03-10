@@ -60,8 +60,11 @@ async def redirect_to_long_url(short_url: str):
     # long_url = await get_long_url(short_url)
     doc_with_long_url = await collection.find_one({"short_url": short_url})
     if doc_with_long_url is not None:
+        doc_count = doc_with_long_url.get("count", 0)
         long_url = doc_with_long_url.get("long_url")
         if long_url:
+            doc_with_long_url["count"] = doc_count + 1
+            await collection.update_one({"short_url": short_url}, {"$set": doc_with_long_url})
             return RedirectResponse(url=long_url, status_code=302)
     else:
         return 'Not found'
